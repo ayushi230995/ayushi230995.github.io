@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaflet Map with GeoJSON and Filters</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <style>
+        #map { height: 800px; width: 100%; }
+        .filter-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: white;
+            padding: 10px;
+            z-index: 1000;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            max-height: 95vh;
+            overflow-y: auto;
+            max-width: 350px;
+        }
+    </style>
+</head>
+<body>
+    <div class="filter-controls">
+        <label for="LandType">Land/Institution Type:</label>
+        <select id="LandType" onchange="filterMarkers()">
+            <option value="">All</option>
+            <option value="Amarai">Amarai</option>
+            <option value="Ambedkar Bhavan">Ambedkar Bhavan</option>
+            <option value="Anganwadi">Anganwadi</option>
+            <option value="APMC market & Raitha Samparka Kendra">APMC market & Raitha Samparka Kendra</option>
+            <option value="Ashwath Katte">Ashwath Katte</option>
+            <option value="Bank">Bank</option>
+            <option value="Cemetery">Cemetery</option>
+            <option value="Check Dam">Check Dam</option>
+            <option value="College">College</option>
+            <option value="Community hall">Community hall</option>
+            <option value="Darga">Darga</option>
+            <option value="Fodder storage area">Fodder storage area</option>
+            <option value="Gomala">Gomala</option>
+            <option value="Government Anne">Government Anne</option>
+            <option value="Government School">Government School</option>
+            <option value="Govt P.U college">Govt P.U college</option>
+            <option value="Gram Panchayat office">Gram Panchayat office</option>
+            <option value="Gunda Thope">Gunda Thope</option>
+            <option value="Health clinic">Health clinic</option>
+            <option value="Hillock">Hillock</option>
+            <option value="Kalyani">Kalyani</option>
+            <option value="Karab Land">Karab Land</option>
+            <option value="Karnataka Electricity board">Karnataka Electricity board</option>
+            <option value="Kere">Kere</option>
+            <option value="Kodi">Kodi</option>
+            <option value="Kunte">Kunte</option>
+            <option value="Lake Catchment">Lake Catchment</option>
+            <option value="Library">Library</option>
+            <option value="Madrasa">Madrasa</option>
+            <option value="Mantapa">Mantapa</option>
+            <option value="Mapath Kaval">Mapath Kaval</option>
+            <option value="Mata">Mata</option>
+            <option value="Milk Dairy">Milk Dairy</option>
+            <option value="Mosque">Mosque</option>
+            <option value="Nursing Home">Nursing Home</option>
+            <option value="Ooni">Ooni</option>
+            <option value="Open Well">Open Well</option>
+            <option value="P.U College">P.U College</option>
+            <option value="Police station">Police station</option>
+            <option value="Post office">Post office</option>
+            <option value="Primary health centre">Primary health centre</option>
+            <option value="Private Hospital">Private Hospital</option>
+            <option value="Private School">Private School</option>
+            <option value="Public distribution supply shop">Public distribution supply shop</option>
+            <option value="Quarry">Quarry</option>
+            <option value="Revenue department office">Revenue department office</option>
+            <option value="RO Filter">RO Filter</option>
+            <option value="Sanjeevani work shed">Sanjeevani work shed</option>
+            <option value="SFSC godown">SFSC godown</option>
+            <option value="Slum board housing">Slum board housing</option>
+            <option value="Stream">Stream</option>
+            <option value="Sub registrars office">Sub registrars office</option>
+            <option value="Sunnada Gudu">Sunnada Gudu</option>
+            <option value="Syndicate Raitha Sahakara Sangha Niyamitha">Syndicate Raitha Sahakara Sangha Niyamitha</option>
+            <option value="Telephone exchange office">Telephone exchange office</option>
+            <option value="Temple">Temple</option>
+            <option value="Thooru Jaga">Thooru Jaga</option>
+            <option value="Veterinary hospital">Veterinary hospital</option>
+            <option value="Village Accountant office">Village Accountant office</option>
+            <option value="Village over head tank">Village over head tank</option>
+            <option value="Village square">Village square</option>
+        </select>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script>
+        // Define base layers
+        const openStreetMapStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            opacity: 0.5
+        });
+
+        const Esri_WorldImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+            opacity: 0.7
+        });
+
+        const openStreetMapTopo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)',
+            opacity: 0.3
+        });
+
+        // Initialize the map
+        let map = L.map('map', {
+            center: [12.863771, 77.798746],
+            zoom: 12.5,
+            layers: [openStreetMapStandard] // Default basemap
+        });
+
+        // Base layers control
+        let baseMaps = {
+            "OpenStreetMap Standard": openStreetMapStandard,
+            "Esri World Imagery": Esri_WorldImagery,
+            "OpenStreetMap Topo": openStreetMapTopo
+        };
+        L.control.layers(baseMaps).addTo(map);
+
+        // Global variables for GeoJSON data and layer
+        let geojsonData = null;
+        let geojsonLayer = null;
+
+
+        // Load GeoJSON file for Taluk boundaries
+        fetch('anekal_taluk.geojson')
+            .then(response => response.json())
+            .then(TalukData => {
+                // Add village boundaries as a new layer
+                const TalukLayer = L.geoJSON(TalukData, {
+                    style: function (feature) {
+                        return {
+                            color: "brown", // Red boundary color
+                            weight: 1,
+                            opacity: 0.8,
+                            fillOpacity: 0, // Transparent fill
+                        };
+                    }
+                });
+
+                TalukLayer.addTo(map);
+            })
+            .catch(error => {
+                console.error("Error loading Taluk boundaries GeoJSON data:", error);
+            });
+
+        // Load GeoJSON file for village boundaries
+        fetch('Grampanchayats.geojson')
+            .then(response => response.json())
+            .then(villageData => {
+                // Add village boundaries as a new layer
+                const villageLayer = L.geoJSON(villageData, {
+                    style: function (feature) {
+                        return {
+                            color: "orange", // Red boundary color
+                            weight: 2,
+                            opacity: 0.8,
+                            fillOpacity: 0.05, // Transparent fill
+                        };
+                    },
+                    onEachFeature: function (feature, layer) {
+                        const props = feature.properties;
+                        layer.bindPopup(`
+                            <b>Grampanchayats Name:</b> ${props['KGISGPName'] || "N/A"}
+                        `);
+                    }
+                });
+
+                villageLayer.addTo(map);
+            })
+            .catch(error => {
+                console.error("Error loading village boundaries GeoJSON data:", error);
+            });
+
+
+
+        // Load GeoJSON file
+        fetch('land_details.geojson')
+            .then(response => response.json())
+            .then(data => {
+                geojsonData = data; // Store GeoJSON data globally
+
+                // Create the initial GeoJSON layer
+                geojsonLayer = L.geoJSON(geojsonData, {
+                    pointToLayer: function (feature, latlng) {
+                        let circleOptions = {
+                            radius: 4,
+                            fillColor: "brown",
+                            color: "brown",
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 1
+                        };
+
+                        // Specify icon paths for specific types
+                        const iconPaths = {
+                            'Anganwadi': 'icons/anganwadi.png',
+                            'RO Filter': 'icons/water.png',
+                            'Milk Dairy': 'icons/dairy.png',
+                            'Gomala': 'icons/gomala.png',
+                            'Cemetery': 'icons/cemetery.png',
+                            'Open Well': 'icons/well.png',
+                            'Government School': 'icons/govt_school.png',
+                            'Private School': 'icons/pvt_school.png',
+                            'Private Hospital': 'icons/hospital.png',
+                            'Health Clinic': 'icons/clinic.png',
+                            'Public distribution supply shop': 'icons/pds.png',
+                            'Library': 'icons/library.png',
+                            'Veterinary hospital': 'icons/vet.png',
+                            'Post office': 'icons/post.png',
+                            'Temple': 'icons/temple.png',
+                            'Bank': 'icons/bank.png',
+                            'Karnataka Electricity board': 'icons/electricity.png',
+                            'Gram Panchayat office': 'icons/panchayat.png',
+                            // Add more specific types and their icon paths here
+                        };
+
+                        if (iconPaths[feature.properties['Land/Institution Type']]) {
+                            let icon = L.icon({
+                                iconUrl: iconPaths[feature.properties['Land/Institution Type']],
+                                iconSize: [14, 14], // Size of the icon
+                                iconAnchor: [7, 7] // Anchor point of the icon
+                            });
+                            return L.marker(latlng, {icon: icon});
+                        } else {
+                            // Return a circle marker for other types
+                            return L.circleMarker(latlng, circleOptions);
+                        }
+                    },
+                    onEachFeature: function (feature, layer) {
+                        const props = feature.properties;
+                        layer.bindPopup(`
+                            <b>Land/Institution Type:</b> ${props['Land/Institution Type'] || "N/A"}<br>
+                            <b>Land/Institution Type (Detailed):</b> ${props['Land/Institution Type (Detailed)'] || "N/A"}<br>
+                            <b>Extent in Acres:</b> ${props['Extent in Acres'] || "N/A"}<br>
+                            <b>Survey No.:</b> ${props['Survey no'] || "N/A"}<br>
+                            <b>Latitude:</b> ${props['Lat'] || "N/A"}<br>
+                            <b>Longitude:</b> ${props['Long'] || "N/A"}<br>
+                            <b>Details:</b> ${props['Details'] || "N/A"}<br>
+                            <b>Village:</b> ${props['Village'] || "N/A"}
+                        `);
+                    }
+                });
+
+                geojsonLayer.addTo(map);
+            })
+            .catch(error => {
+                console.error("Error loading GeoJSON data:", error);
+            });
+
+
+        // Filter markers based on selected land type
+        function filterMarkers() {
+            let selectedLandType = document.getElementById('LandType').value;
+
+            if (geojsonLayer) {
+                map.removeLayer(geojsonLayer);
+            }
+
+            // Create a new filtered GeoJSON layer
+            geojsonLayer = L.geoJSON(geojsonData, {
+                filter: function (feature) {
+                    if (selectedLandType === "") return true; // Show all if no filter selected
+                    return feature.properties['Land/Institution Type'].toLowerCase() === selectedLandType.toLowerCase();
+                },
+                pointToLayer: function (feature, latlng) {
+                    let circleOptions = {
+                        radius: 4,
+                        fillColor: "brown",
+                        color: "brown",
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 1
+                    };
+
+                    const iconPaths = {
+                        'Anganwadi': 'icons/anganwadi.png',
+                        'RO Filter': 'icons/water.png',
+                        'Milk Dairy': 'icons/dairy.png',
+                        'Gomala': 'icons/gomala.png',
+                        'Cemetery': 'icons/cemetery.png',
+                        'Open Well': 'icons/well.png',
+                        'Government School': 'icons/govt_school.png',
+                        'Private School': 'icons/pvt_school.png',
+                        'Private Hospital': 'icons/hospital.png',
+                        'Health Clinic': 'icons/clinic.png',
+                        'Public distribution supply shop': 'icons/pds.png',
+                        'Library': 'icons/library.png',
+                        'Veterinary hospital': 'icons/vet.png',
+                        'Post office': 'icons/post.png',
+                        'Temple': 'icons/temple.png',
+                        'Bank': 'icons/bank.png',
+                        'Karnataka Electricity board': 'icons/electricity.png',
+                        'Gram Panchayat office': 'icons/panchayat.png',
+                        // Add more specific types and their icon paths here
+                    };
+
+                    if (iconPaths[feature.properties['Land/Institution Type']]) {
+                        let icon = L.icon({
+                            iconUrl: iconPaths[feature.properties['Land/Institution Type']],
+                            iconSize: [14, 14], // Size of the icon
+                            iconAnchor: [7, 7] // Anchor point of the icon
+                        });
+                        return L.marker(latlng, {icon: icon});
+                    } else {
+                        // Return a circle marker for other types
+                        return L.circleMarker(latlng, circleOptions);
+                    }
+                },
+                onEachFeature: function (feature, layer) {
+                    const props = feature.properties;
+                    layer.bindPopup(`
+                        <b>Land/Institution Type:</b> ${props['Land/Institution Type'] || "N/A"}<br>
+                        <b>Land/Institution Type (Detailed):</b> ${props['Land/Institution Type (Detailed)'] || "N/A"}<br>
+                        <b>Extent in Acres:</b> ${props['Extent in Acres'] || "N/A"}<br>
+                        <b>Survey No.:</b> ${props['Survey no'] || "N/A"}<br>
+                        <b>Latitude:</b> ${props['Lat'] || "N/A"}<br>
+                        <b>Longitude:</b> ${props['Long'] || "N/A"}<br>
+                        <b>Details:</b> ${props['Details'] || "N/A"}<br>
+                        <b>Village:</b> ${props['Village'] || "N/A"}
+                    `);
+                }
+            });
+
+            geojsonLayer.addTo(map);
+        }
+
+
+    </script>
+</body>
+</html>
